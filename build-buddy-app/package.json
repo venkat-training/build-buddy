@@ -13,5 +13,8 @@
   "dependencies": {
     "algoliasearch": "^4.25.3",
     "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
   }
 }
