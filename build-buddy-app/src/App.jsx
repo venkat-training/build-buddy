@@ -7,9 +7,32 @@ export default function App() {
   const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
   const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
-  const agentBaseUrl =
-    import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL ||
-    `https://${appId}.algolia.net`;  // CHANGED: Removed -dsn
+  const defaultAgentBaseUrl = `https://${appId}.algolia.com`;
+  const configuredAgentBaseUrl =
+    import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL || defaultAgentBaseUrl;
+
+  const buildAgentUrls = (baseUrl) => {
+    const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+    const completionsPath = `/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
+    const urls = new Set();
+
+    if (normalizedBaseUrl.includes("/agent-studio")) {
+      urls.add(`${normalizedBaseUrl}${completionsPath}`);
+      urls.add(
+        `${normalizedBaseUrl.replace(/\/agent-studio$/, "")}${completionsPath}`
+      );
+    } else {
+      urls.add(`${normalizedBaseUrl}/agent-studio${completionsPath}`);
+      urls.add(`${normalizedBaseUrl}${completionsPath}`);
+    }
+
+    if (normalizedBaseUrl !== defaultAgentBaseUrl) {
+      urls.add(`${defaultAgentBaseUrl}/agent-studio${completionsPath}`);
+      urls.add(`${defaultAgentBaseUrl}${completionsPath}`);
+    }
+
+    return Array.from(urls);
+  };
 
   async function askAgent() {
     if (!appId || !agentId || !searchKey) {
@@ -21,34 +44,47 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(
-        `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`,
-        {  // CHANGED: Added agent-studio and changed query to completions
+      const requestOptions = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-algolia-api-key": searchKey,              // CHANGED: Lowercase x
-          "x-algolia-application-id": appId,           // CHANGED: Lowercase x
-          Accept: "text/event-stream, application/json"
+          "x-algolia-api-key": searchKey,
+          "x-algolia-application-id": appId,
+          Accept: "text/event-stream, application/json",
         },
         body: JSON.stringify({
-          messages: [                                  // CHANGED: New message format
+          messages: [
             {
               role: "user",
               parts: [
                 {
-                  text: query
-                }
-              ]
-            }
-          ]
-        })
-      });
+                  text: query,
+                },
+              ],
+            },
+          ],
+        }),
+      };
+
+      const candidateUrls = buildAgentUrls(configuredAgentBaseUrl);
+      let res = null;
+
+      for (const url of candidateUrls) {
+        const attempt = await fetch(url, requestOptions);
+        res = attempt;
+        if (attempt.ok || attempt.status !== 404) {
+          break;
+        }
+      }
 
       if (!res.ok) {
         const errorText = await res.text();
+        const notFoundHint =
+          res.status === 404
+            ? "Agent endpoint not found. Confirm the Agent ID and set VITE_ALGOLIA_AGENT_BASE_URL to the API endpoint shown in Agent Studio."
+            : "";
         setResponse(
-          `Request failed (${res.status}): ${errorText || res.statusText}`
+          `Request failed (${res.status}): ${errorText || res.statusText} ${notFoundHint}`.trim()
         );
         return;
       }
