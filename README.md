@@ -168,6 +168,8 @@ npm install
 # VITE_ALGOLIA_APP_ID
 # VITE_ALGOLIA_SEARCH_KEY
 # VITE_ALGOLIA_AGENT_ID
+# Optional: override Agent Studio endpoint (defaults to https://<APP_ID>.algolia.com)
+# VITE_ALGOLIA_AGENT_BASE_URL
 
 npm run dev
 ```
@@ -192,6 +194,7 @@ vercel
 # - VITE_ALGOLIA_APP_ID
 # - VITE_ALGOLIA_SEARCH_KEY
 # - VITE_ALGOLIA_AGENT_ID
+# - Optional: VITE_ALGOLIA_AGENT_BASE_URL
 
 # Deploy to production
 vercel --prod
