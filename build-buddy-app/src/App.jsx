@@ -51,8 +51,47 @@ export default function App() {
         return;
       }
 
-      const data = await res.json();
-      setResponse(JSON.stringify(data, null, 2));
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let accumulatedResponse = "";
+      let buffer = "";
+
+      setResponse(""); // Clear previous response
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        buffer += decoder.decode(value, { stream: !done });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith("data: ")) continue;
+
+          const jsonStr = trimmedLine.substring(6);
+          if (jsonStr === "[DONE]") break;
+
+          try {
+            const data = JSON.parse(jsonStr);
+            // Handle various possible JSON structures from Algolia/AI SDK
+            const content =
+              data.textDelta ||
+              data.text ||
+              data.choices?.[0]?.delta?.content ||
+              "";
+
+            if (content) {
+              accumulatedResponse += content;
+              setResponse(accumulatedResponse);
+            }
+          } catch (e) {
+            // Ignore parse errors for partial JSON if any
+          }
+        }
+      }
     } catch (error) {
       setResponse(
         `Network error: ${error.message}. Verify the agent base URL and DNS.`
