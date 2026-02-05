@@ -15,6 +15,7 @@ export default function App() {
       ]
     : [];
   const configuredAgentBaseUrl = import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL;
+  let lastUrl = "";
 
   const buildAgentUrls = (baseUrls) => {
     const completionsPath = `/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
@@ -75,7 +76,6 @@ export default function App() {
         : defaultAgentBaseUrls;
       const candidateUrls = buildAgentUrls(candidateBaseUrls);
       let res = null;
-      let lastUrl = "";
 
       for (const url of candidateUrls) {
         lastUrl = url;
