@@ -6,7 +6,7 @@ export default function App() {
 
   async function askAgent() {
     const res = await fetch(
-      `https://${import.meta.env.VITE_ALGOLIA_APP_ID}-dsn.algolia.net/1/agents/${import.meta.env.VITE_ALGOLIA_AGENT_ID}/query`,
+      `https://agent.algolia.com/1/agents/${import.meta.env.VITE_ALGOLIA_AGENT_ID}/query`,
       {
         method: "POST",
         headers: {
