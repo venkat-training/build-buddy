@@ -18,22 +18,16 @@ export default function App() {
   let lastUrl = "";
 
   const buildAgentUrls = (baseUrls) => {
-    const completionsPath = `/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
+    const completionsPath = `/agent-studio/1/agents/${agentId}/completions?stream=false&compatibilityMode=ai-sdk-5`;
     const urls = new Set();
 
     baseUrls.forEach((baseUrl) => {
       if (!baseUrl) return;
-      const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+      const normalizedBaseUrl = baseUrl
+        .replace(/\/+$/, "")
+        .replace(/\/agent-studio$/, "");
 
-      if (normalizedBaseUrl.includes("/agent-studio")) {
-        urls.add(`${normalizedBaseUrl}${completionsPath}`);
-        urls.add(
-          `${normalizedBaseUrl.replace(/\/agent-studio$/, "")}${completionsPath}`
-        );
-      } else {
-        urls.add(`${normalizedBaseUrl}/agent-studio${completionsPath}`);
-        urls.add(`${normalizedBaseUrl}${completionsPath}`);
-      }
+      urls.add(`${normalizedBaseUrl}${completionsPath}`);
     });
 
     return Array.from(urls);

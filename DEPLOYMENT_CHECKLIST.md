@@ -267,7 +267,7 @@ npm run deploy # (requires gh-pages package)
 - Ask questions in #agent-studio channel
 
 **Algolia Documentation:**
-- Agent Studio: https://www.algolia.com/doc/guides/algolia-ai/agent-studio
+- Agent Studio: http://algolia.com/doc/guides/algolia-ai/agent-studio/how-to/integration#api-integration
 - InstantSearch: https://www.algolia.com/doc/guides/building-search-ui/what-is-instantsearch/js
 
 **DEV Challenge FAQ:** https://dev.to/challenges/algolia-2026-01-07
