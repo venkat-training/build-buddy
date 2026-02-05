@@ -28,7 +28,8 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
           "x-algolia-api-key": searchKey,              // CHANGED: Lowercase x
-          "x-algolia-application-id": appId            // CHANGED: Lowercase x
+          "x-algolia-application-id": appId,           // CHANGED: Lowercase x
+          Accept: "text/event-stream, application/json"
         },
         body: JSON.stringify({
           messages: [                                  // CHANGED: New message format
@@ -49,6 +50,25 @@ export default function App() {
         setResponse(
           `Request failed (${res.status}): ${errorText || res.statusText}`
         );
+        return;
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      const isEventStream = contentType.includes("text/event-stream");
+
+      const extractContent = (data) =>
+        data?.text ||
+        data?.output_text ||
+        data?.choices?.[0]?.message?.content ||
+        data?.choices?.[0]?.delta?.content ||
+        data?.message?.content?.[0]?.text ||
+        data?.output?.[0]?.content?.[0]?.text ||
+        "";
+
+      if (!res.body || !isEventStream) {
+        const data = await res.json();
+        const content = extractContent(data);
+        setResponse(content || "No response content returned.");
         return;
       }
 
@@ -78,11 +98,7 @@ export default function App() {
           try {
             const data = JSON.parse(jsonStr);
             // Handle various possible JSON structures from Algolia/AI SDK
-            const content =
-              data.textDelta ||
-              data.text ||
-              data.choices?.[0]?.delta?.content ||
-              "";
+            const content = extractContent(data);
 
             if (content) {
               accumulatedResponse += content;
