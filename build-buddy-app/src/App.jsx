@@ -20,7 +20,9 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions`, {  // CHANGED: Added agent-studio and changed query to completions
+      const res = await fetch(
+        `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=legacy`,
+        {  // CHANGED: Added agent-studio and changed query to completions
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -37,8 +39,7 @@ export default function App() {
                 }
               ]
             }
-          ],
-          compatibilityMode: "legacy"
+          ]
         })
       });
 
