@@ -3,28 +3,50 @@ import { useState } from "react";
 export default function App() {
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState("");
+  const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
+  const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
+  const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
   const agentBaseUrl =
     import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL ||
-    `https://${import.meta.env.VITE_ALGOLIA_APP_ID}.algolia.com`;
+    `https://${appId}-dsn.algolia.net`;
 
   async function askAgent() {
-    const res = await fetch(
-      `${agentBaseUrl}/1/agents/${import.meta.env.VITE_ALGOLIA_AGENT_ID}/query`,
-      {
+    if (!appId || !agentId || !searchKey) {
+      setResponse(
+        "Missing Algolia configuration. Please set VITE_ALGOLIA_APP_ID, " +
+          "VITE_ALGOLIA_AGENT_ID, and VITE_ALGOLIA_SEARCH_KEY."
+      );
+      return;
+    }
+
+    try {
+      const res = await fetch(`${agentBaseUrl}/1/agents/${agentId}/query`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Algolia-API-Key": import.meta.env.VITE_ALGOLIA_SEARCH_KEY,
-          "X-Algolia-Application-Id": import.meta.env.VITE_ALGOLIA_APP_ID
+          "X-Algolia-API-Key": searchKey,
+          "X-Algolia-Application-Id": appId
         },
         body: JSON.stringify({
           query
         })
-      }
-    );
+      });
 
-    const data = await res.json();
-    setResponse(JSON.stringify(data, null, 2));
+      if (!res.ok) {
+        const errorText = await res.text();
+        setResponse(
+          `Request failed (${res.status}): ${errorText || res.statusText}`
+        );
+        return;
+      }
+
+      const data = await res.json();
+      setResponse(JSON.stringify(data, null, 2));
+    } catch (error) {
+      setResponse(
+        `Network error: ${error.message}. Verify the agent base URL and DNS.`
+      );
+    }
   }
 
   return (
