@@ -35,6 +35,8 @@
   VITE_ALGOLIA_APP_ID=your_app_id
   VITE_ALGOLIA_SEARCH_KEY=your_search_key
   VITE_ALGOLIA_AGENT_ID=your_agent_id
+  # Optional: override Agent Studio endpoint (defaults to https://<APP_ID>.algolia.com)
+  VITE_ALGOLIA_AGENT_BASE_URL=https://your_app_id.algolia.com
   ```
 - [ ] Test locally: `npm run dev`
 - [ ] Verify component selection works
@@ -63,6 +65,7 @@ In Vercel Dashboard → Settings → Environment Variables, add:
 - `VITE_ALGOLIA_APP_ID`
 - `VITE_ALGOLIA_SEARCH_KEY`
 - `VITE_ALGOLIA_AGENT_ID`
+- Optional: `VITE_ALGOLIA_AGENT_BASE_URL`
 
 #### Step 4: Redeploy
 ```bash
