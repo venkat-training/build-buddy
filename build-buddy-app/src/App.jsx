@@ -8,7 +8,7 @@ export default function App() {
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
   const agentBaseUrl =
     import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL ||
-    `https://${appId}-dsn.algolia.net`;
+    `https://${appId}.algolia.net`;  // CHANGED: Removed -dsn
 
   async function askAgent() {
     if (!appId || !agentId || !searchKey) {
@@ -20,15 +20,24 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${agentBaseUrl}/1/agents/${agentId}/query`, {
+      const res = await fetch(`${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions`, {  // CHANGED: Added agent-studio and changed query to completions
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Algolia-API-Key": searchKey,
-          "X-Algolia-Application-Id": appId
+          "x-algolia-api-key": searchKey,              // CHANGED: Lowercase x
+          "x-algolia-application-id": appId            // CHANGED: Lowercase x
         },
         body: JSON.stringify({
-          query
+          messages: [                                  // CHANGED: New message format
+            {
+              role: "user",
+              parts: [
+                {
+                  text: query
+                }
+              ]
+            }
+          ]
         })
       });
 
