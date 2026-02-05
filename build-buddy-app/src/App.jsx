@@ -21,7 +21,7 @@ export default function App() {
 
     try {
       const res = await fetch(
-        `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=legacy`,
+        `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`,
         {  // CHANGED: Added agent-studio and changed query to completions
         method: "POST",
         headers: {
