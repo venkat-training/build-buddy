@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./App.css";
 
 export default function App() {
   const [query, setQuery] = useState("");
@@ -100,21 +101,41 @@ export default function App() {
   }
 
   return (
-    <div style={{ padding: 40 }}>
+    <div className="app">
       <h1>Build Buddy</h1>
 
-      <input
-        style={{ width: "400px", padding: "8px" }}
+      <label className="input-label" htmlFor="build-query">
+        Describe your PC build or paste diagnostics
+      </label>
+      <textarea
+        id="build-query"
+        className="query-input"
         placeholder="Describe your PC build..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        rows={6}
       />
 
-      <br /><br />
+      <div className="actions">
+        <button onClick={askAgent} disabled={!query.trim()}>
+          Ask Agent
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            setQuery("");
+            setResponse("");
+          }}
+          disabled={!query && !response}
+        >
+          Clear
+        </button>
+      </div>
 
-      <button onClick={askAgent}>Ask Agent</button>
-
-      <pre>{response}</pre>
+      <pre className="response" aria-live="polite">
+        {response || "Agent responses will appear here."}
+      </pre>
     </div>
   );
 }
