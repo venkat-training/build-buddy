@@ -9,9 +9,7 @@ export default function App() {
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
   const defaultAgentBaseUrls = appId
     ? [
-        `https://${appId}.algolia.com`,
-        `https://${appId}-dsn.algolia.net`,
-        `https://${appId}.algolia.net`,
+        `https://${appId}.algolia.net`
       ]
     : [];
   const configuredAgentBaseUrl = import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL;
