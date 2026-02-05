@@ -7,29 +7,33 @@ export default function App() {
   const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
   const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
-  const defaultAgentBaseUrl = `https://${appId}.algolia.com`;
-  const configuredAgentBaseUrl =
-    import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL || defaultAgentBaseUrl;
+  const defaultAgentBaseUrls = appId
+    ? [
+        `https://${appId}.algolia.com`,
+        `https://${appId}-dsn.algolia.net`,
+        `https://${appId}.algolia.net`,
+      ]
+    : [];
+  const configuredAgentBaseUrl = import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL;
 
-  const buildAgentUrls = (baseUrl) => {
-    const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const buildAgentUrls = (baseUrls) => {
     const completionsPath = `/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
     const urls = new Set();
 
-    if (normalizedBaseUrl.includes("/agent-studio")) {
-      urls.add(`${normalizedBaseUrl}${completionsPath}`);
-      urls.add(
-        `${normalizedBaseUrl.replace(/\/agent-studio$/, "")}${completionsPath}`
-      );
-    } else {
-      urls.add(`${normalizedBaseUrl}/agent-studio${completionsPath}`);
-      urls.add(`${normalizedBaseUrl}${completionsPath}`);
-    }
+    baseUrls.forEach((baseUrl) => {
+      if (!baseUrl) return;
+      const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
 
-    if (normalizedBaseUrl !== defaultAgentBaseUrl) {
-      urls.add(`${defaultAgentBaseUrl}/agent-studio${completionsPath}`);
-      urls.add(`${defaultAgentBaseUrl}${completionsPath}`);
-    }
+      if (normalizedBaseUrl.includes("/agent-studio")) {
+        urls.add(`${normalizedBaseUrl}${completionsPath}`);
+        urls.add(
+          `${normalizedBaseUrl.replace(/\/agent-studio$/, "")}${completionsPath}`
+        );
+      } else {
+        urls.add(`${normalizedBaseUrl}/agent-studio${completionsPath}`);
+        urls.add(`${normalizedBaseUrl}${completionsPath}`);
+      }
+    });
 
     return Array.from(urls);
   };
@@ -66,10 +70,15 @@ export default function App() {
         }),
       };
 
-      const candidateUrls = buildAgentUrls(configuredAgentBaseUrl);
+      const candidateBaseUrls = configuredAgentBaseUrl
+        ? [configuredAgentBaseUrl, ...defaultAgentBaseUrls]
+        : defaultAgentBaseUrls;
+      const candidateUrls = buildAgentUrls(candidateBaseUrls);
       let res = null;
+      let lastUrl = "";
 
       for (const url of candidateUrls) {
+        lastUrl = url;
         const attempt = await fetch(url, requestOptions);
         res = attempt;
         if (attempt.ok || attempt.status !== 404) {
@@ -146,8 +155,19 @@ export default function App() {
         }
       }
     } catch (error) {
+      const baseUrlHint = configuredAgentBaseUrl
+        ? `Using VITE_ALGOLIA_AGENT_BASE_URL=${configuredAgentBaseUrl}.`
+        : "No VITE_ALGOLIA_AGENT_BASE_URL set; using Algolia defaults.";
+      const urlHint = lastUrl ? `Last attempted URL: ${lastUrl}` : "";
       setResponse(
-        `Network error: ${error.message}. Verify the agent base URL and DNS.`
+        [
+          `Network error: ${error.message}. Verify the agent base URL and DNS.`,
+          baseUrlHint,
+          urlHint,
+          "If the host does not resolve, copy the API endpoint from Agent Studio and set VITE_ALGOLIA_AGENT_BASE_URL.",
+        ]
+          .filter(Boolean)
+          .join(" ")
       );
     }
   }
