@@ -9,8 +9,8 @@ export default function App() {
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
   const defaultAgentBaseUrls = appId
     ? [
-        `https://${appId}.algolia.net`
-      ]
+      `https://${appId}.algolia.net`
+    ]
     : [];
   const configuredAgentBaseUrl = import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL;
   let lastUrl = "";
@@ -35,7 +35,7 @@ export default function App() {
     if (!appId || !agentId || !searchKey) {
       setResponse(
         "Missing Algolia configuration. Please set VITE_ALGOLIA_APP_ID, " +
-          "VITE_ALGOLIA_AGENT_ID, and VITE_ALGOLIA_SEARCH_KEY."
+        "VITE_ALGOLIA_AGENT_ID, and VITE_ALGOLIA_SEARCH_KEY."
       );
       return;
     }
@@ -93,18 +93,48 @@ export default function App() {
       const contentType = res.headers.get("content-type") || "";
       const isEventStream = contentType.includes("text/event-stream");
 
-      const extractContent = (data) =>
-        data?.text ||
-        data?.output_text ||
-        data?.choices?.[0]?.message?.content ||
-        data?.choices?.[0]?.delta?.content ||
-        data?.message?.content?.[0]?.text ||
-        data?.output?.[0]?.content?.[0]?.text ||
-        "";
+      const extractContent = (data) => {
+        // Agent Studio format: data.parts[0].text
+        if (data?.parts && Array.isArray(data.parts)) {
+          const textParts = data.parts
+            .filter(p => p.type === 'text' || p.text)
+            .map(p => p.text)
+            .filter(Boolean);
+          if (textParts.length > 0) {
+            return textParts.join('\n');
+          }
+        }
+
+        // Fallback to other formats
+        return data?.text ||
+          data?.output_text ||
+          data?.choices?.[0]?.message?.content ||
+          data?.choices?.[0]?.delta?.content ||
+          data?.message?.content?.[0]?.text ||
+          data?.output?.[0]?.content?.[0]?.text ||
+          "";
+      };
 
       if (!res.body || !isEventStream) {
         const data = await res.json();
-        const content = extractContent(data);
+
+        // DEBUG: Show raw response
+        console.log('Agent Studio Response:', data);
+
+        // Agent Studio format: check data.parts
+        let content = '';
+        if (data?.parts && Array.isArray(data.parts)) {
+          content = data.parts
+            .filter(p => p.type === 'text')
+            .map(p => p.text)
+            .join('\n');
+        }
+
+        // Fallback: show entire response if no content
+        if (!content) {
+          content = JSON.stringify(data, null, 2);
+        }
+
         setResponse(content || "No response content returned.");
         return;
       }
