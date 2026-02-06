@@ -196,10 +196,11 @@ export default function App() {
 
   return (
     <div className="app">
-      <h1>Build Buddy</h1>
+      <h1>Build Buddy – AI PC Build Assistant</h1>
 
       <label className="input-label" htmlFor="build-query">
         Describe your budget or use case and I’ll recommend compatible components.
+
       </label>
       <textarea
         id="build-query"
