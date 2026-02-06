@@ -199,7 +199,7 @@ export default function App() {
       <h1>Build Buddy</h1>
 
       <label className="input-label" htmlFor="build-query">
-        Describe your PC build or paste diagnostics
+        Describe your budget or use case and I’ll recommend compatible components.
       </label>
       <textarea
         id="build-query"
