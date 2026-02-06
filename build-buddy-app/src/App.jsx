@@ -25,7 +25,7 @@ export default function App() {
 
     try {
       // Build the URL WITHOUT query parameters
-      const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions`;
+      const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
       
       // Build request body
       const requestBody = {
