@@ -1,24 +1,60 @@
-.app {
-  padding: 40px;
-  max-width: 800px;
-  margin: 0 auto;
-  font-family: "Inter", system-ui, sans-serif;
+body {
+  background: #f3f6fb;
 }
 
-.input-label {
-  display: block;
+.app {
+  max-width: 760px;
+  margin: 60px auto;
+  padding: 32px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+h1 {
   margin-bottom: 8px;
-  font-weight: 600;
+}
+
+.subtitle {
+  color: #57606a;
+  margin-bottom: 20px;
+}
+
+.examples {
+  margin-bottom: 20px;
+}
+
+.example {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all .15s ease;
+}
+
+.example:hover {
+  background: #eef2ff;
+  border-color: #6366f1;
 }
 
 .query-input {
   width: 100%;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 14px;
+  border-radius: 10px;
   border: 1px solid #d0d7de;
-  font-size: 14px;
+  font-size: 15px;
   resize: vertical;
   min-height: 140px;
+}
+
+.query-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,.15);
 }
 
 .actions {
@@ -28,24 +64,27 @@
 }
 
 button {
-  padding: 10px 16px;
+  padding: 10px 20px;
   border-radius: 999px;
   border: none;
-  background: #1f6feb;
-  color: #ffffff;
+  background: #6366f1;
+  color: white;
   font-weight: 600;
   cursor: pointer;
 }
 
-button:disabled {
-  background: #c9d1d9;
-  cursor: not-allowed;
+button:hover:not(:disabled) {
+  background: #4f46e5;
 }
 
 button.secondary {
-  background: #f6f8fa;
+  background: white;
   color: #24292f;
   border: 1px solid #d0d7de;
+}
+
+button:disabled {
+  opacity: .6;
 }
 
 .response {

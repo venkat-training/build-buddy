@@ -129,27 +129,20 @@ export default function App() {
     <div className="app">
       <h1>🔧 Build Buddy – AI PC Build Assistant</h1>
 
+      <p className="subtitle">
+        Tell me your PC goals and I’ll recommend compatible components.
+      </p>
+
       {!response && !query && (
         <div className="examples">
-          <p style={{ fontSize: 14, color: "#666" }}>Try examples:</p>
           {exampleQueries.map((ex, i) => (
-            <button
+            <div
               key={i}
+              className="example"
               onClick={() => setQuery(ex)}
-              style={{
-                display: "block",
-                width: "100%",
-                margin: "6px 0",
-                padding: 10,
-                textAlign: "left",
-                borderRadius: 4,
-                border: "1px solid #ddd",
-                background: "#f5f5f5",
-                cursor: "pointer"
-              }}
             >
               💡 {ex}
-            </button>
+            </div>
           ))}
         </div>
       )}
@@ -179,7 +172,10 @@ export default function App() {
         </button>
       </div>
 
-      <pre className="response">{response || "Agent responses will appear here."}</pre>
+      <pre className="response">
+        {response || "Agent responses will appear here."}
+      </pre>
     </div>
   );
+
 }
