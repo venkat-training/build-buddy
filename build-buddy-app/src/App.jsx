@@ -5,7 +5,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
   const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
@@ -26,7 +26,7 @@ export default function App() {
     try {
       // Build the URL WITHOUT query parameters
       const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
-      
+
       // Build request body
       const requestBody = {
         messages: [
@@ -59,9 +59,9 @@ export default function App() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("❌ Error response:", errorText);
-        
+
         let errorMessage = `Request failed (${response.status}): ${errorText}`;
-        
+
         if (response.status === 404) {
           errorMessage += "\n\nTroubleshooting:\n";
           errorMessage += `1. Verify Agent ID: ${agentId}\n`;
@@ -76,30 +76,38 @@ export default function App() {
           errorMessage += "1. A simpler, shorter query\n";
           errorMessage += "2. Wait a moment and try again";
         }
-        
+
         setResponse(errorMessage);
         return;
       }
 
-      const data = await response.json();
-      console.log("✅ Response data:", data);
+      const raw = await response.text();
+      console.log("✅ Raw response:", raw);
 
-      // Extract text from Agent Studio response
+      // Algolia Agent returns SSE (data: {...})
+      // Extract all JSON blocks
+      const lines = raw
+        .split("\n")
+        .filter(l => l.startsWith("data: "))
+        .map(l => l.replace("data: ", "").trim())
+        .filter(l => l && l !== "[DONE]");
+
       let content = "";
-      
-      if (data?.parts && Array.isArray(data.parts)) {
-        content = data.parts
-          .filter(p => p.type === 'text')
-          .map(p => p.text)
-          .join('\n');
-      }
 
-      if (!content) {
-        // Fallback: show raw response for debugging
-        content = `Debug - Raw response:\n${JSON.stringify(data, null, 2)}`;
+      for (const line of lines) {
+        try {
+          const obj = JSON.parse(line);
+
+          if (obj.type === "text-delta" && obj.delta) {
+            content += obj.delta;
+          }
+        } catch (e) {
+          console.warn("Skipping non-json chunk:", line);
+        }
       }
 
       setResponse(content || "No response content returned.");
+
 
     } catch (error) {
       console.error("💥 Network error:", error);
@@ -124,7 +132,7 @@ export default function App() {
       <label className="input-label" htmlFor="build-query">
         Describe your budget or use case and I'll recommend compatible components.
       </label>
-      
+
       <textarea
         id="build-query"
         className="query-input"
@@ -135,8 +143,8 @@ export default function App() {
       />
 
       <div className="actions">
-        <button 
-          onClick={askAgent} 
+        <button
+          onClick={askAgent}
           disabled={!query.trim() || isLoading}
         >
           {isLoading ? "Thinking..." : "Ask Agent"}
@@ -157,7 +165,7 @@ export default function App() {
       <pre className="response" aria-live="polite">
         {response || "Agent responses will appear here."}
       </pre>
-      
+
       {/* Debug info - remove after testing */}
       <details style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', fontSize: '12px' }}>
         <summary>Debug Info (click to expand)</summary>
