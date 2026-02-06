@@ -57,3 +57,26 @@ button.secondary {
   min-height: 120px;
   white-space: pre-wrap;
 }
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .app {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .query-input {
+    font-size: 16px; /* prevents iOS zoom */
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}

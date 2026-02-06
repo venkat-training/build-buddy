@@ -1,22 +1,53 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import "./App.css";
+
+const isDev = import.meta.env.DEV;
+const log = (...args) => isDev && console.log(...args);
+
+const exampleQueries = [
+  "I want to build a gaming PC with Ryzen 7 7800X3D",
+  "Will RTX 4090 fit in NZXT H510 Flow case?",
+  "What motherboard is compatible with AMD Ryzen 9 7950X?"
+];
 
 export default function App() {
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const lastRequestRef = useRef(0);
+
   const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
   const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
-  const agentBaseUrl = import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL || `https://${appId}.algolia.net`;
+  const agentBaseUrl =
+    import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL ||
+    `https://${appId}.algolia.net`;
 
   async function askAgent() {
+    const now = Date.now();
+
+    // Debounce: prevent rapid clicking
+    if (now - lastRequestRef.current < 2000) {
+      setResponse("Please wait a moment before asking again 🙂");
+      return;
+    }
+
+    lastRequestRef.current = now;
+
     if (!appId || !agentId || !searchKey) {
-      setResponse(
-        "Missing Algolia configuration. Please set VITE_ALGOLIA_APP_ID, " +
-        "VITE_ALGOLIA_AGENT_ID, and VITE_ALGOLIA_SEARCH_KEY."
-      );
+      setResponse("Missing Algolia configuration.");
+      return;
+    }
+
+    // Sanitize input
+    const sanitizedQuery = query
+      .trim()
+      .replace(/<script>/gi, "")
+      .substring(0, 1000);
+
+    if (sanitizedQuery.length < 3) {
+      setResponse("Please enter a longer question.");
       return;
     }
 
@@ -24,68 +55,44 @@ export default function App() {
     setResponse("Thinking...");
 
     try {
-      // Build the URL WITHOUT query parameters
       const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
 
-      // Build request body
       const requestBody = {
         messages: [
           {
             role: "user",
-            parts: [
-              {
-                text: query,
-              },
-            ],
-          },
-        ],
+            parts: [{ text: sanitizedQuery }]
+          }
+        ]
       };
 
-      //console.log("🔍 Request URL:", url);
-      //console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
+      log("Request URL:", url);
 
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-algolia-api-key": searchKey,
-          "x-algolia-application-id": appId,
+          "x-algolia-application-id": appId
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(requestBody)
       });
 
-      //console.log("📥 Response status:", response.status);
+      if (response.status === 429) {
+        setResponse(
+          "You're sending requests too quickly 😅\n\nPlease wait a minute and try again."
+        );
+        return;
+      }
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Error response:", errorText);
-
-        let errorMessage = `Request failed (${response.status}): ${errorText}`;
-
-        if (response.status === 404) {
-          errorMessage += "\n\nTroubleshooting:\n";
-          errorMessage += `1. Verify Agent ID: ${agentId}\n`;
-          errorMessage += `2. Ensure agent is published in Agent Studio\n`;
-          errorMessage += `3. Check endpoint: ${url}`;
-        } else if (response.status === 502 || response.status === 504) {
-          errorMessage = "The agent is taking too long to respond. This can happen when:\n";
-          errorMessage += "• The agent is processing a complex query\n";
-          errorMessage += "• The LLM (Gemini) API is experiencing delays\n";
-          errorMessage += "• Network latency is high\n\n";
-          errorMessage += "Try:\n";
-          errorMessage += "1. A simpler, shorter query\n";
-          errorMessage += "2. Wait a moment and try again";
-        }
-
-        setResponse(errorMessage);
+        setResponse("The AI service is temporarily unavailable. Please try again.");
         return;
       }
 
       const raw = await response.text();
-      //console.log("✅ Raw response:", raw);
 
-      // Algolia Agent returns SSE (data: {...})
-      // Extract all JSON blocks
+      // Algolia Agent uses SSE (data: {...})
       const lines = raw
         .split("\n")
         .filter(l => l.startsWith("data: "))
@@ -97,28 +104,21 @@ export default function App() {
       for (const line of lines) {
         try {
           const obj = JSON.parse(line);
-
           if (obj.type === "text-delta" && obj.delta) {
             content += obj.delta;
           }
-        } catch (e) {
-          console.warn("Skipping non-json chunk:", line);
+        } catch {
+          // silently skip
         }
       }
 
-      setResponse(content || "No response content returned.");
-
+      setResponse(content || "No response returned.");
 
     } catch (error) {
-      console.error("💥 Network error:", error);
+      if (isDev) console.error(error);
+
       setResponse(
-        `Network error: ${error.message}\n\n` +
-        `Endpoint: ${agentBaseUrl}\n` +
-        `Agent ID: ${agentId}\n\n` +
-        `Make sure:\n` +
-        `1. Your agent is published in Agent Studio\n` +
-        `2. The Agent ID is correct\n` +
-        `3. Your API key has the right permissions`
+        "We're having trouble connecting right now.\n\nPlease try again in a moment."
       );
     } finally {
       setIsLoading(false);
@@ -129,12 +129,32 @@ export default function App() {
     <div className="app">
       <h1>🔧 Build Buddy – AI PC Build Assistant</h1>
 
-      <label className="input-label" htmlFor="build-query">
-        Describe your budget or use case and I'll recommend compatible components.
-      </label>
+      {!response && !query && (
+        <div className="examples">
+          <p style={{ fontSize: 14, color: "#666" }}>Try examples:</p>
+          {exampleQueries.map((ex, i) => (
+            <button
+              key={i}
+              onClick={() => setQuery(ex)}
+              style={{
+                display: "block",
+                width: "100%",
+                margin: "6px 0",
+                padding: 10,
+                textAlign: "left",
+                borderRadius: 4,
+                border: "1px solid #ddd",
+                background: "#f5f5f5",
+                cursor: "pointer"
+              }}
+            >
+              💡 {ex}
+            </button>
+          ))}
+        </div>
+      )}
 
       <textarea
-        id="build-query"
         className="query-input"
         placeholder="Example: I want to build a gaming PC with Ryzen 7 7800X3D"
         value={query}
@@ -143,12 +163,10 @@ export default function App() {
       />
 
       <div className="actions">
-        <button
-          onClick={askAgent}
-          disabled={!query.trim() || isLoading}
-        >
+        <button onClick={askAgent} disabled={!query.trim() || isLoading}>
           {isLoading ? "Thinking..." : "Ask Agent"}
         </button>
+
         <button
           type="button"
           className="secondary"
@@ -156,17 +174,12 @@ export default function App() {
             setQuery("");
             setResponse("");
           }}
-          disabled={!query && !response}
         >
           Clear
         </button>
       </div>
 
-      <pre className="response" aria-live="polite">
-        {response || "Agent responses will appear here."}
-      </pre>
-
-
+      <pre className="response">{response || "Agent responses will appear here."}</pre>
     </div>
   );
 }

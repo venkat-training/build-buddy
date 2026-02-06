@@ -24,6 +24,18 @@ Building a custom PC is exciting but fraught with compatibility issues:
 
 ---
 
+## ⚡ Quick Start (Try it Now!)
+
+**No setup required - try the live demo:**
+1. Visit [build-buddy-pi.vercel.app](https://build-buddy-pi.vercel.app)
+2. Type: *"I want to build a gaming PC with Ryzen 7 7800X3D"*
+3. Click "Ask Agent"
+4. See instant, intelligent compatibility recommendations!
+
+**Want to run locally?** See [Getting Started](#-getting-started) below.
+
+---
+
 ## ✨ Features
 
 ### Core Capabilities
@@ -99,6 +111,33 @@ pc_storage       →  Drives (interface, speed)
 ```
 
 **Total:** 32 components with full compatibility metadata
+
+### Architecture Flow
+
+```
+┌─────────────┐
+│   Browser   │
+│  (React UI) │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────────────┐
+│   Algolia Agent Studio      │
+│   (Orchestration Layer)     │
+└──────┬──────────────────────┘
+       │
+       ├─────► Google Gemini (LLM)
+       │
+       └─────► Algolia Search (8 Indices)
+                - pc_cpus
+                - pc_motherboards
+                - pc_gpus
+                - pc_ram
+                - pc_psus
+                - pc_cases
+                - pc_coolers
+                - pc_storage
+```
 
 ### Compatibility Rules
 
@@ -328,6 +367,25 @@ Your app will be live at: `https://your-project.vercel.app`
 
 ---
 
+## ❓ Troubleshooting
+
+### "Agent returns no response"
+1. Check Agent is Published in Algolia Dashboard
+2. Verify Gemini API key is valid at [aistudio.google.com](https://aistudio.google.com/)
+3. Check browser console for errors (F12)
+
+### "404 Not Found"
+1. Verify Agent ID is correct in environment variables
+2. Check `VITE_ALGOLIA_AGENT_BASE_URL` is set correctly
+3. Ensure agent is published (not draft) in Agent Studio
+
+### "Rate limit exceeded"
+The free Gemini tier allows 15 requests per minute. Wait 60 seconds between requests.
+
+**More help:** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Here are some ideas:
@@ -401,7 +459,7 @@ This project was built for the **Algolia Agent Studio Challenge** (January 2026)
 **Development Time:** ~20 hours over 3 days  
 **Total Cost:** $0
 
-**Read the full submission:** [DEV.to Post](https://dev.to/YOUR_POST_URL)
+**📖 Read the full submission:** [Build Buddy - DEV.to Post](https://dev.to/venkattraining/build-buddy-ai-pc-building-assistant-powered-by-algolia-agent-studio-52m4)
 
 ---
 
