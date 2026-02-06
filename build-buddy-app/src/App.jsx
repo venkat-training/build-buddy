@@ -41,8 +41,8 @@ export default function App() {
         ],
       };
 
-      console.log("🔍 Request URL:", url);
-      console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
+      //console.log("🔍 Request URL:", url);
+      //console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
       const response = await fetch(url, {
         method: "POST",
@@ -54,7 +54,7 @@ export default function App() {
         body: JSON.stringify(requestBody),
       });
 
-      console.log("📥 Response status:", response.status);
+      //console.log("📥 Response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -82,7 +82,7 @@ export default function App() {
       }
 
       const raw = await response.text();
-      console.log("✅ Raw response:", raw);
+      //console.log("✅ Raw response:", raw);
 
       // Algolia Agent returns SSE (data: {...})
       // Extract all JSON blocks
@@ -166,17 +166,7 @@ export default function App() {
         {response || "Agent responses will appear here."}
       </pre>
 
-      {/* Debug info - remove after testing */}
-      <details style={{ marginTop: '20px', padding: '10px', background: '#f5f5f5', fontSize: '12px' }}>
-        <summary>Debug Info (click to expand)</summary>
-        <div style={{ marginTop: '10px' }}>
-          <div>App ID: {appId ? `${appId.substring(0, 4)}...` : 'Not set'}</div>
-          <div>Agent ID: {agentId ? `${agentId.substring(0, 8)}...` : 'Not set'}</div>
-          <div>Search Key: {searchKey ? '••••••••' : 'Not set'}</div>
-          <div>Base URL: {agentBaseUrl}</div>
-          <div>Full URL: {agentBaseUrl}/agent-studio/1/agents/{agentId}/completions</div>
-        </div>
-      </details>
+
     </div>
   );
 }
