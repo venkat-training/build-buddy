@@ -6,8 +6,8 @@ const log = (...args) => isDev && console.log(...args);
 
 const exampleQueries = [
   "I want to build a gaming PC with Ryzen 7 7800X3D",
-  "Will RTX 4090 fit in NZXT H510 Flow case?",
-  "What motherboard is compatible with AMD Ryzen 9 7950X?"
+  "What motherboard is compatible with AMD Ryzen 7 7800X3D?",
+  "Compare Intel Core i5-14600K vs AMD Ryzen 7 7800X3D"
 ];
 
 export default function App() {
