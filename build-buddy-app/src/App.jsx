@@ -57,7 +57,7 @@ export default function App() {
     }
 
     setIsLoading(true);
-    setResponse("Thinking...");
+    setResponse("");
 
     try {
       const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
@@ -95,31 +95,46 @@ export default function App() {
         return;
       }
 
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         setResponse("AI service unavailable.");
         return;
       }
 
-      const raw = await res.text();
-
-      const lines = raw
-        .split("\n")
-        .filter(l => l.startsWith("data: "))
-        .map(l => l.replace("data: ", "").trim())
-        .filter(l => l && l !== "[DONE]");
+      // ✅ STREAMING FIX
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
 
       let content = "";
 
-      for (const line of lines) {
-        try {
-          const obj = JSON.parse(line);
-          if (obj.type === "text-delta" && obj.delta) {
-            content += obj.delta;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+
+          const payload = line.replace("data:", "").trim();
+          if (!payload || payload === "[DONE]") continue;
+
+          try {
+            const obj = JSON.parse(payload);
+
+            if (obj.type === "text-delta" && obj.delta) {
+              content += obj.delta;
+              setResponse(content); // live update
+            }
+          } catch {
+            // ignore malformed chunks
           }
-        } catch {}
+        }
       }
 
-      setResponse(content || "No response.");
+      if (!content) {
+        setResponse("No response.");
+      }
 
     } catch (err) {
       console.error(err);
@@ -163,7 +178,7 @@ export default function App() {
           onClick={() => {
             setQuery("");
             setResponse("");
-            conversationIdRef.current = uuid(); // reset conversation
+            conversationIdRef.current = uuid();
           }}
         >
           Clear
