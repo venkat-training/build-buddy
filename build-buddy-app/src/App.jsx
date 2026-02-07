@@ -10,6 +10,9 @@ const exampleQueries = [
   "Compare Intel Core i5-14600K vs AMD Ryzen 7 7800X3D"
 ];
 
+// Simple UUID generator
+const uuid = () => crypto.randomUUID();
+
 export default function App() {
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState("");
@@ -17,9 +20,13 @@ export default function App() {
 
   const lastRequestRef = useRef(0);
 
+  // Persist conversation across requests
+  const conversationIdRef = useRef(uuid());
+
   const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
   const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
+
   const agentBaseUrl =
     import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL ||
     `https://${appId}.algolia.net`;
@@ -27,7 +34,6 @@ export default function App() {
   async function askAgent() {
     const now = Date.now();
 
-    // Debounce: prevent rapid clicking
     if (now - lastRequestRef.current < 2000) {
       setResponse("Please wait a moment before asking again 🙂");
       return;
@@ -40,7 +46,6 @@ export default function App() {
       return;
     }
 
-    // Sanitize input
     const sanitizedQuery = query
       .trim()
       .replace(/<script>/gi, "")
@@ -58,17 +63,24 @@ export default function App() {
       const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
 
       const requestBody = {
+        id: conversationIdRef.current,
         messages: [
           {
+            id: uuid(),
             role: "user",
-            parts: [{ text: sanitizedQuery }]
+            parts: [
+              {
+                type: "text",
+                text: sanitizedQuery
+              }
+            ]
           }
         ]
       };
 
-      log("Request URL:", url);
+      log("Request:", requestBody);
 
-      const response = await fetch(url, {
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,21 +90,18 @@ export default function App() {
         body: JSON.stringify(requestBody)
       });
 
-      if (response.status === 429) {
-        setResponse(
-          "You're sending requests too quickly 😅\n\nPlease wait a minute and try again."
-        );
+      if (res.status === 429) {
+        setResponse("Too many requests — slow down 🙂");
         return;
       }
 
-      if (!response.ok) {
-        setResponse("The AI service is temporarily unavailable. Please try again.");
+      if (!res.ok) {
+        setResponse("AI service unavailable.");
         return;
       }
 
-      const raw = await response.text();
+      const raw = await res.text();
 
-      // Algolia Agent uses SSE (data: {...})
       const lines = raw
         .split("\n")
         .filter(l => l.startsWith("data: "))
@@ -107,19 +116,14 @@ export default function App() {
           if (obj.type === "text-delta" && obj.delta) {
             content += obj.delta;
           }
-        } catch {
-          // silently skip
-        }
+        } catch {}
       }
 
-      setResponse(content || "No response returned.");
+      setResponse(content || "No response.");
 
-    } catch (error) {
-      if (isDev) console.error(error);
-
-      setResponse(
-        "We're having trouble connecting right now.\n\nPlease try again in a moment."
-      );
+    } catch (err) {
+      console.error(err);
+      setResponse("Connection problem. Try again.");
     } finally {
       setIsLoading(false);
     }
@@ -136,11 +140,7 @@ export default function App() {
       {!response && !query && (
         <div className="examples">
           {exampleQueries.map((ex, i) => (
-            <div
-              key={i}
-              className="example"
-              onClick={() => setQuery(ex)}
-            >
+            <div key={i} className="example" onClick={() => setQuery(ex)}>
               💡 {ex}
             </div>
           ))}
@@ -149,10 +149,8 @@ export default function App() {
 
       <textarea
         className="query-input"
-        placeholder="Example: I want to build a gaming PC with Ryzen 7 7800X3D"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        rows={6}
       />
 
       <div className="actions">
@@ -161,11 +159,11 @@ export default function App() {
         </button>
 
         <button
-          type="button"
           className="secondary"
           onClick={() => {
             setQuery("");
             setResponse("");
+            conversationIdRef.current = uuid(); // reset conversation
           }}
         >
           Clear
@@ -177,5 +175,4 @@ export default function App() {
       </pre>
     </div>
   );
-
 }
