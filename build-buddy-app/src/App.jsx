@@ -1,6 +1,9 @@
 import { useState, useRef } from "react";
 import "./App.css";
 
+const isDev = import.meta.env.DEV;
+const log = (...args) => isDev && console.log(...args);
+
 const exampleQueries = [
   "I want to build a gaming PC with Ryzen 7 7800X3D",
   "What motherboard is compatible with AMD Ryzen 7 7800X3D?",
@@ -17,55 +20,60 @@ export default function App() {
   const lastRequestRef = useRef(0);
   const conversationIdRef = useRef(uuid());
 
-  // Config from Environment Variables
   const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
   const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
   const agentBaseUrl = import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL || `https://${appId}.algolia.net`;
 
   async function askAgent() {
-    if (Date.now() - lastRequestRef.current < 2000) return;
-    if (!query.trim()) return;
+    const now = Date.now();
+    if (now - lastRequestRef.current < 2000) {
+      setResponse("Please wait a moment before asking again 🙂");
+      return;
+    }
+    lastRequestRef.current = now;
 
-    lastRequestRef.current = Date.now();
+    if (!appId || !agentId || !searchKey) {
+      setResponse("Missing Algolia configuration.");
+      return;
+    }
+
+    const sanitizedQuery = query.trim().replace(/<script>/gi, "").substring(0, 1000);
+    if (sanitizedQuery.length < 3) {
+      setResponse("Please enter a longer question.");
+      return;
+    }
+
     setIsLoading(true);
     setResponse("");
 
     try {
-      // Primary Attempt: Streaming
-      await performQuery(true);
-    } catch (streamError) {
-      console.warn("Streaming interrupted or failed, trying fallback...", streamError);
+      // Attempt 1: Streaming
+      await runQuery(sanitizedQuery, true);
+    } catch (err) {
+      log("Stream failed, trying JSON fallback...", err);
       try {
-        // Fallback: Standard JSON (More stable if Vercel cuts the stream)
-        await performQuery(false);
-      } catch (fallbackError) {
-        setResponse("The AI is taking too long to respond. Please try a more specific question.");
-        console.error("Final Error:", fallbackError);
+        // Attempt 2: Non-streaming (This works even when Vercel severs the stream)
+        await runQuery(sanitizedQuery, false);
+      } catch (fallbackErr) {
+        setResponse("The connection was lost. Please try a shorter question or check your internet.");
       }
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function performQuery(isStreaming = true) {
+  async function runQuery(sanitizedQuery, isStreaming) {
     const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
-
-    // 30-second timeout to prevent indefinite hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     const res = await fetch(url, {
       method: "POST",
-      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "x-algolia-api-key": searchKey,
         "x-algolia-application-id": appId,
         "Accept": isStreaming ? "text/event-stream" : "application/json",
-        // BYPASS VERCEL BUFFERING
-        "x-no-compression": "1",
-        "Cache-Control": "no-cache",
+        "x-no-compression": "1" 
       },
       body: JSON.stringify({
         id: conversationIdRef.current,
@@ -73,29 +81,25 @@ export default function App() {
         messages: [{
           id: uuid(),
           role: "user",
-          parts: [{ type: "text", text: query.trim() }]
+          parts: [{ type: "text", text: sanitizedQuery }]
         }]
       })
     });
 
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`API Error: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     if (!isStreaming) {
       const data = await res.json();
-      const content = data.choices?.[0]?.message?.content || data.delta || "No content found.";
-      setResponse(content);
+      // Handle different possible JSON structures from Algolia
+      const text = data.choices?.[0]?.message?.content || data.delta || data.message || "No response.";
+      setResponse(text);
       return;
     }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let fullText = "";
-    let buffer = "";
+    let content = "";
+    let buffer = ""; 
 
     while (true) {
       const { value, done } = await reader.read();
@@ -103,80 +107,51 @@ export default function App() {
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+      buffer = lines.pop() || ""; 
 
       for (const line of lines) {
         if (!line.startsWith("data:")) continue;
-        const dataStr = line.replace("data:", "").trim();
-        if (dataStr === "[DONE]") return;
+        const payload = line.replace("data:", "").trim();
+        if (payload === "[DONE]") return;
 
         try {
-          const json = JSON.parse(dataStr);
-          const delta = json.delta || json.choices?.[0]?.delta?.content;
+          const obj = JSON.parse(payload);
+          const delta = obj.delta || obj.choices?.[0]?.delta?.content;
           if (delta) {
-            fullText += delta;
-            setResponse(fullText);
+            content += delta;
+            setResponse(content);
           }
-        } catch (e) {
-          // Fragmented JSON - wait for next chunk
-        }
+        } catch (e) { /* wait for more data */ }
       }
     }
   }
 
+  // YOUR ORIGINAL UI - DO NOT CHANGE
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <h1>🔧 Build Buddy</h1>
-        <p>Your AI PC Architecture Guide</p>
-      </header>
+    <div className="app">
+      <h1>🔧 Build Buddy – AI PC Build Assistant</h1>
+      <p className="subtitle">Tell me your PC goals and I’ll recommend compatible components.</p>
 
-      <main className="chat-interface">
-        <div className="input-section">
-          <textarea
-            className="main-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ask anything about your build..."
-            rows="4"
-          />
-          
-          <div className="button-group">
-            <button 
-              className="ask-button" 
-              onClick={askAgent} 
-              disabled={isLoading || !query.trim()}
-            >
-              {isLoading ? "Consulting AI..." : "Ask Agent"}
-            </button>
-            <button className="clear-button" onClick={() => {
-              setQuery("");
-              setResponse("");
-              conversationIdRef.current = uuid();
-            }}>
-              Clear
-            </button>
-          </div>
+      {!response && !query && (
+        <div className="examples">
+          {exampleQueries.map((ex, i) => (
+            <div key={i} className="example" onClick={() => setQuery(ex)}>💡 {ex}</div>
+          ))}
         </div>
+      )}
 
-        {!response && !isLoading && (
-          <div className="suggestions">
-            {exampleQueries.map((q, i) => (
-              <button key={i} onClick={() => setQuery(q)}>{q}</button>
-            ))}
-          </div>
-        )}
+      <textarea className="query-input" value={query} onChange={(e) => setQuery(e.target.value)} />
 
-        {(response || isLoading) && (
-          <div className="response-area">
-            {isLoading && !response ? (
-              <div className="pulse-loader">Analyzing compatibility...</div>
-            ) : (
-              <pre className="text-display">{response}</pre>
-            )}
-          </div>
-        )}
-      </main>
+      <div className="actions">
+        <button onClick={askAgent} disabled={!query.trim() || isLoading}>
+          {isLoading ? "Thinking..." : "Ask Agent"}
+        </button>
+        <button className="secondary" onClick={() => {
+          setQuery(""); setResponse(""); conversationIdRef.current = uuid();
+        }}>Clear</button>
+      </div>
+
+      <pre className="response">{response || "Agent responses will appear here."}</pre>
     </div>
   );
 }
