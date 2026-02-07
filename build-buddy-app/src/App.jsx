@@ -33,11 +33,6 @@ export default function App() {
     }
     lastRequestRef.current = now;
 
-    if (!appId || !agentId || !searchKey) {
-      setResponse("Missing Algolia configuration.");
-      return;
-    }
-
     const sanitizedQuery = query.trim().replace(/<script>/gi, "").substring(0, 1000);
     if (sanitizedQuery.length < 3) {
       setResponse("Please enter a longer question.");
@@ -48,55 +43,38 @@ export default function App() {
     setResponse("Thinking...");
 
     try {
-      // CORRECT: Keep ai-sdk-5 but add stream=false in URL
-      const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?stream=false&compatibilityMode=ai-sdk-5`;
-
-      const res = await fetch(url, {
-        method: "POST",
+      // Call our serverless function instead of Algolia directly
+      const res = await fetch('/api/agent', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "x-algolia-api-key": searchKey,
-          "x-algolia-application-id": appId,
-          // Remove Accept header - let it be default
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [{
-            role: "user",
-            parts: [{ text: sanitizedQuery }]
-          }]
+          query: sanitizedQuery
         })
       });
 
       if (!res.ok) {
-        const errorText = await res.text();
-        log("Error response:", errorText);
-        throw new Error(`Server responded with ${res.status}`);
+        const errorData = await res.json();
+        log("API error:", errorData);
+        throw new Error(errorData.error || `Request failed with ${res.status}`);
       }
 
       const data = await res.json();
-      log("Agent response:", data);
+      log("API response:", data);
 
-      // Extract content
-      let content = "";
-      if (data?.parts && Array.isArray(data.parts)) {
-        content = data.parts
-          .filter(p => p.type === 'text')
-          .map(p => p.text)
-          .join('\n');
-      } else if (data?.choices?.[0]?.message?.content) {
-        content = data.choices[0].message.content;
-      } else if (typeof data === 'string') {
-        content = data;
-      } else {
-        content = JSON.stringify(data, null, 2);
-      }
-
-      setResponse(content || "The agent didn't provide a response.");
+      setResponse(data.content || "The agent didn't provide a response.");
 
     } catch (err) {
       log("Error:", err);
       setResponse(
-        "Build Buddy is having trouble connecting. Please try again in a moment."
+        "Build Buddy is having trouble right now. This could be because:\n\n" +
+        "• The AI service is busy or overloaded\n" +
+        "• The question is too complex\n" +
+        "• Network connectivity issues\n\n" +
+        "Please try:\n" +
+        "• A simpler, shorter question\n" +
+        "• Waiting a minute and trying again"
       );
     } finally {
       setIsLoading(false);
