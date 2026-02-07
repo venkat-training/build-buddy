@@ -45,11 +45,11 @@ export default function App() {
     }
 
     setIsLoading(true);
-    setResponse("");
+    setResponse("Thinking...");
 
     try {
-      // Use standard JSON mode for maximum stability on Vercel Hobby
-      const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?compatibilityMode=ai-sdk-5`;
+      // CORRECT: Keep ai-sdk-5 but add stream=false in URL
+      const url = `${agentBaseUrl}/agent-studio/1/agents/${agentId}/completions?stream=false&compatibilityMode=ai-sdk-5`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -57,35 +57,47 @@ export default function App() {
           "Content-Type": "application/json",
           "x-algolia-api-key": searchKey,
           "x-algolia-application-id": appId,
-          "Accept": "application/json"
+          // Remove Accept header - let it be default
         },
         body: JSON.stringify({
-          id: conversationIdRef.current,
-          stream: false, // Turn off streaming to avoid chunked encoding errors
           messages: [{
-            id: uuid(),
             role: "user",
-            parts: [{ type: "text", text: sanitizedQuery }]
+            parts: [{ text: sanitizedQuery }]
           }]
         })
       });
 
       if (!res.ok) {
+        const errorText = await res.text();
+        log("Error response:", errorText);
         throw new Error(`Server responded with ${res.status}`);
       }
 
       const data = await res.json();
-      
-      // Algolia Agent Studio typically returns content in choice.message.content
-      const agentMessage = data.choices?.[0]?.message?.content || 
-                           data.message || 
-                           "The agent didn't provide a response.";
-      
-      setResponse(agentMessage);
+      log("Agent response:", data);
+
+      // Extract content
+      let content = "";
+      if (data?.parts && Array.isArray(data.parts)) {
+        content = data.parts
+          .filter(p => p.type === 'text')
+          .map(p => p.text)
+          .join('\n');
+      } else if (data?.choices?.[0]?.message?.content) {
+        content = data.choices[0].message.content;
+      } else if (typeof data === 'string') {
+        content = data;
+      } else {
+        content = JSON.stringify(data, null, 2);
+      }
+
+      setResponse(content || "The agent didn't provide a response.");
 
     } catch (err) {
       log("Error:", err);
-      setResponse("Build Buddy is currently busy or taking too long. Please try again with a simpler question.");
+      setResponse(
+        "Build Buddy is having trouble connecting. Please try again in a moment."
+      );
     } finally {
       setIsLoading(false);
     }
