@@ -3,6 +3,10 @@
 [![Live Demo](https://img.shields.io/badge/demo-live-success?style=for-the-badge)](https://build-buddy-pi.vercel.app)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Algolia](https://img.shields.io/badge/Powered%20by-Algolia-5468FF?style=for-the-badge)](https://www.algolia.com)
+[![GitHub issues](https://img.shields.io/github/issues/venkat-training/build-buddy?style=for-the-badge)](https://github.com/venkat-training/build-buddy/issues)
+[![GitHub stars](https://img.shields.io/github/stars/venkat-training/build-buddy?style=for-the-badge)](https://github.com/venkat-training/build-buddy/stargazers)
+[![DEV Post](https://img.shields.io/badge/DEV-Post-black?style=for-the-badge&logo=dev.to)](https://dev.to/venkattraining/build-buddy-ai-pc-building-assistant-powered-by-algolia-agent-studio-52m4)
+[![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red?style=for-the-badge)](https://github.com/venkat-training)
 
 > An intelligent PC building assistant powered by Algolia Agent Studio that helps users create compatible computer builds through AI-driven compatibility validation.
 
