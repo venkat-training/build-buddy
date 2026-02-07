@@ -10,7 +10,6 @@ const exampleQueries = [
   "Compare Intel Core i5-14600K vs AMD Ryzen 7 7800X3D"
 ];
 
-// Simple UUID generator
 const uuid = () => crypto.randomUUID();
 
 export default function App() {
@@ -19,14 +18,13 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   const lastRequestRef = useRef(0);
-
-  // Persist conversation across requests
   const conversationIdRef = useRef(uuid());
 
   const appId = import.meta.env.VITE_ALGOLIA_APP_ID;
   const agentId = import.meta.env.VITE_ALGOLIA_AGENT_ID;
   const searchKey = import.meta.env.VITE_ALGOLIA_SEARCH_KEY;
 
+  // Fix: Ensure the URL uses the correct subdomain structure
   const agentBaseUrl =
     import.meta.env.VITE_ALGOLIA_AGENT_BASE_URL ||
     `https://${appId}.algolia.net`;
@@ -42,14 +40,11 @@ export default function App() {
     lastRequestRef.current = now;
 
     if (!appId || !agentId || !searchKey) {
-      setResponse("Missing Algolia configuration.");
+      setResponse("Missing Algolia configuration. check your .env file.");
       return;
     }
 
-    const sanitizedQuery = query
-      .trim()
-      .replace(/<script>/gi, "")
-      .substring(0, 1000);
+    const sanitizedQuery = query.trim().substring(0, 1000);
 
     if (sanitizedQuery.length < 3) {
       setResponse("Please enter a longer question.");
@@ -68,77 +63,76 @@ export default function App() {
           {
             id: uuid(),
             role: "user",
-            parts: [
-              {
-                type: "text",
-                text: sanitizedQuery
-              }
-            ]
+            parts: [{ type: "text", text: sanitizedQuery }]
           }
         ]
       };
-
-      log("Request:", requestBody);
 
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-algolia-api-key": searchKey,
-          "x-algolia-application-id": appId
+          "x-algolia-application-id": appId,
+          "Accept": "text/event-stream"
         },
         body: JSON.stringify(requestBody)
       });
 
-      if (res.status === 429) {
-        setResponse("Too many requests — slow down 🙂");
-        return;
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server error: ${res.status}`);
       }
 
-      if (!res.ok || !res.body) {
-        setResponse("AI service unavailable.");
-        return;
-      }
+      if (!res.body) throw new Error("No response body");
 
-      // ✅ STREAMING FIX
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-
-      let content = "";
+      let fullContent = "";
+      let streamBuffer = ""; // Crucial: holds partial chunks
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
+        // Append new chunk to buffer
+        streamBuffer += decoder.decode(value, { stream: true });
+
+        // Split buffer into lines (SSE format)
+        const lines = streamBuffer.split("\n");
+        
+        // Keep the last (potentially incomplete) line in the buffer
+        streamBuffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (!line.startsWith("data:")) continue;
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith("data:")) continue;
 
-          const payload = line.replace("data:", "").trim();
-          if (!payload || payload === "[DONE]") continue;
+          const data = trimmedLine.replace("data:", "").trim();
+          if (data === "[DONE]") break;
 
           try {
-            const obj = JSON.parse(payload);
-
-            if (obj.type === "text-delta" && obj.delta) {
-              content += obj.delta;
-              setResponse(content); // live update
+            const parsed = JSON.parse(data);
+            // Algolia compatibilityMode ai-sdk-5 uses .delta for the text chunk
+            const chunk = parsed.delta || ""; 
+            
+            if (chunk) {
+              fullContent += chunk;
+              setResponse(fullContent);
             }
-          } catch {
-            // ignore malformed chunks
+          } catch (e) {
+            log("Error parsing JSON chunk", e);
           }
         }
       }
 
-      if (!content) {
-        setResponse("No response.");
+      if (!fullContent) {
+        setResponse("Agent connected but returned no text.");
       }
 
     } catch (err) {
-      console.error(err);
-      setResponse("Connection problem. Try again.");
+      console.error("Agent Error:", err);
+      setResponse(`Error: ${err.message || "Connection failed"}. Check console for details.`);
     } finally {
       setIsLoading(false);
     }
@@ -164,6 +158,7 @@ export default function App() {
 
       <textarea
         className="query-input"
+        placeholder="e.g. Help me build a $1500 workstation..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -185,9 +180,11 @@ export default function App() {
         </button>
       </div>
 
-      <pre className="response">
-        {response || "Agent responses will appear here."}
-      </pre>
+      <div className="response-container">
+        <pre className="response">
+          {response || (isLoading ? "..." : "Agent responses will appear here.")}
+        </pre>
+      </div>
     </div>
   );
 }
